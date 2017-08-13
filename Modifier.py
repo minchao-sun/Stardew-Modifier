@@ -403,6 +403,7 @@ class NewSave(object):
         return self.__line[start:end]
 
     def backpack(self):
+        global add_items
         print("********** Backpack Modify **********")
         '''replace tools'''
         self.__replace_tools(self.__get_backpack())
@@ -464,6 +465,7 @@ class NewSave(object):
             self.__line = re.sub(str, s, self.__line)
 
     def weather_luck(self):
+        global weather
         print("********** Weather and Luck Modify **********")
         start = self.__line.find("<weatherForTomorrow>")
         str = self.__line[start:start + 30]

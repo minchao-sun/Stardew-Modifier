@@ -23,7 +23,8 @@ def main():
     cur_path = os.getcwd()
     filename = None
     for filename in os.listdir(cur_path):
-        if '.' not in filename and '_' in filename:
+        if '.' not in filename and '_' in filename \
+                and 'old' not in filename and 'SaveGameInfo' not in filename:
             break
 
     save_path = cur_path + os.path.sep + uni(filename)
@@ -31,7 +32,7 @@ def main():
         print("save file does not exist")
         exit(0)
     print(save_path)
-
+    print(filename == os.path.basename(save_path))
     if not DEBUG:
         if not os.path.exists("backup"):
             os.mkdir("backup")
@@ -69,7 +70,7 @@ class SaveFile(object):
         self.__xsi = '{http://www.w3.org/2001/XMLSchema-instance}type'
         self.player_modify()
         self.luck_modify()
-        # self.location_modify()
+        self.location_modify()
         self.weather_modify()
 
     def __exp_modify(self):
@@ -155,6 +156,7 @@ class SaveFile(object):
                     if i.get('{http://www.w3.org/2001/XMLSchema-instance}nil') == 'true':
                         i.addnext(delivery)
                         i.getparent().remove(i)
+                        print("quest item added")
                         break
         if DEBUG:
             ET.ElementTree(self.__player.find('items')).write(
@@ -170,7 +172,7 @@ class SaveFile(object):
         self.__backpack()
 
     def luck_modify(self):
-        self.__root.find('dailyLuck').text = '1.18'
+        self.__root.find('dailyLuck').text = '0.12'
 
     def location_modify(self):
         location = self.__root.find('locations')
@@ -197,7 +199,7 @@ class SaveFile(object):
         s = ["Sunny", "Rainy", "Not change", "Thunderstorm"]
         if weather not in range(0, 4):
             print("Wrong input")
-        else:
+        elif int(t.text) in range(0,4):
             print('Weather for tomorrow: {} => {}'.format(s[int(t.text)], s[weather]))
             if weather != 2:
                 t.text = str(weather)

@@ -11,101 +11,114 @@ import os
 import platform
 import shutil
 import sys
-import xml.etree.ElementTree as ET
+import lxml.etree as ET
 
 # sunny:0; rainy:1; not change:2; thunderstorm:3
 weather = 2
+DEBUG = False
 
 
 def main():
     print('Python', sys.version)
-    cur_path = os.path.abspath('.')
-    save_path = cur_path + os.path.sep + uni('Tony_162475701')
+    cur_path = os.getcwd()
+    filename = None
+    for filename in os.listdir(cur_path):
+        if '.' not in filename and '_' in filename:
+            break
+
+    save_path = cur_path + os.path.sep + uni(filename)
+    if not os.path.isfile(save_path):
+        print("save file does not exist")
+        exit(0)
     print(save_path)
-    backup = save_path + '_backup'
-    shutil.copy(save_path, backup)
-    if os.path.isfile(backup):
-        print('Backup success')
-    Save = SaveFile(save_path)
-    Save.write_file()
+
+    if not DEBUG:
+        if not os.path.exists("backup"):
+            os.mkdir("backup")
+        back_path = cur_path + os.path.sep + 'backup'
+        n = 1
+        backup = back_path + os.path.sep + 'backup' + str(n)
+        while os.path.isfile(backup):
+            n += 1
+            backup = back_path + os.path.sep + 'backup' + str(n)
+        shutil.copy(save_path, backup)
+        if os.path.isfile(backup):
+            print('Backup success')
+    save = SaveFile(save_path)
+    save.write_file()
     if platform.system() == 'Windows':
         os.system("pause")
 
 
-def uni(str):
+def uni(string):
     if sys.version_info[0] == 3:
-        return str
+        return string
     else:
-        return unicode(str, 'utf-8')
+        return unicode(string, 'utf-8')
 
 
-class SaveFile:
+class SaveFile(object):
     def __init__(self, save_path):
-        self.__save_path = save_path
+        if DEBUG:
+            self.__save_path = save_path + '_debug.xml'
+        else:
+            self.__save_path = save_path
         self.__tree = ET.parse(save_path)
         self.__root = self.__tree.getroot()
         self.__player = self.__root.find('player')
         self.__xsi = '{http://www.w3.org/2001/XMLSchema-instance}type'
-        self.__xsd = 'http://www.w3.org/2001/XMLSchema'
-        # self.player_modify()
-        # self.luck_modify()
+        self.player_modify()
+        self.luck_modify()
         # self.location_modify()
-        # self.weather_modify()
-
-    @staticmethod
-    def __exp_process(n):
-        x = int(n)
-        if x in range(1, 100):
-            x = 99
-        elif x in range(100, 380):
-            x = 379
-        elif x in range(380, 770):
-            x = 769
-        elif x in range(770, 1300):
-            x = 1299
-        elif x in range(1300, 2150):
-            x = 2149
-        elif x in range(2150, 3300):
-            x = 3299
-        elif x in range(3300, 4800):
-            x = 4799
-        elif x in range(4800, 6900):
-            x = 6899
-        elif x in range(6900, 10000):
-            x = 9999
-        elif x in range(10000, 15000):
-            x = 14999
-        return x.__str__()
+        self.weather_modify()
 
     def __exp_modify(self):
-        i = 0
+        def exp_process(n):
+            x = int(n)
+            if x in range(1, 100):
+                x = 99
+            elif x in range(100, 380):
+                x = 379
+            elif x in range(380, 770):
+                x = 769
+            elif x in range(770, 1300):
+                x = 1299
+            elif x in range(1300, 2150):
+                x = 2149
+            elif x in range(2150, 3300):
+                x = 3299
+            elif x in range(3300, 4800):
+                x = 4799
+            elif x in range(4800, 6900):
+                x = 6899
+            elif x in range(6900, 10000):
+                x = 9999
+            elif x in range(10000, 15000):
+                x = 14999
+            return str(x)
+
         for e in self.__player.find('experiencePoints').findall('int'):
-            i += 1
-            if i == 6:
-                # abandon luck exp points
-                break
-            e.text = self.__exp_process(e.text)
+            e.text = exp_process(e.text)
 
     def __money(self):
         t = int(self.__player.find('money').text)
         if t < 500000:
             t += 300000
-            self.__player.find('money').text = t.__str__()
+            self.__player.find('money').text = str(t)
             print('300,000 money added')
 
-    @staticmethod
-    def __friendship_process(n):
-        if n == 0:
-            return n
-        x = 250 - (n % 250)
-        x += (n - 1)
-        return x
-
     def __friendship(self):
+        def friendship_process(n):
+            if n == 0:
+                return n
+            x = 250 - (n % 250)
+            x += (n - 1)
+            return x
+
         for i in self.__player.find('friendships').findall('item'):
             t = i.find('value').find('ArrayOfInt').find('int')
             temp = int(t.text)
-            t.text = self.__friendship_process(temp).__str__()
+            t.text = str(friendship_process(temp))
 
     @staticmethod
     def __stack_process(node):
@@ -128,10 +141,26 @@ class SaveFile:
         print('Backpack items modified')
 
     def __quest(self):
-        global delivery
         for q in self.__player.find('questLog').findall('Quest'):
             if q.get(self.__xsi) == 'ItemDeliveryQuest':
-                delivery = q.find('deliveryItem')
+                delivery = ET.tostring(q.find('deliveryItem'))
+                delivery = ET.fromstring(delivery)
+
+                delivery.find('hasBeenPickedUpByFarmer').text = 'true'
+                delivery.find('hasBeenInInventory').text = 'true'
+                delivery.tag = 'Item'
+                delivery.set(self.__xsi, "Object")
+
+                for i in self.__player.find('items').findall('Item'):
+                    if i.get('{http://www.w3.org/2001/XMLSchema-instance}nil') == 'true':
+                        i.addnext(delivery)
+                        i.getparent().remove(i)
+                        break
+        if DEBUG:
+            ET.ElementTree(self.__player.find('items')).write(
+                file='items.xml',
+                encoding='utf-8',
+                pretty_print=True)
 
     def player_modify(self):
         self.__exp_modify()
@@ -171,10 +200,15 @@ class SaveFile:
         else:
             print('Weather for tomorrow: {} => {}'.format(s[int(t.text)], s[weather]))
             if weather != 2:
-                t.text = weather.__str__()
+                t.text = str(weather)
 
     def write_file(self):
-        self.__tree.write(self.__save_path, 'utf-8', True)
+        self.__tree.write(
+            file=self.__save_path,
+            encoding='utf-8',
+            xml_declaration=True,
+            pretty_print=DEBUG,
+            method='xml')
 
 
 if __name__ == '__main__':

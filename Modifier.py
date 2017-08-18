@@ -68,6 +68,8 @@ class SaveFile(object):
         self.__root = self.__tree.getroot()
         self.__player = self.__root.find('player')
         self.__xsi = '{http://www.w3.org/2001/XMLSchema-instance}type'
+        ET.register_namespace("xsd", "http://www.w3.org/2001/XMLSchema")
+        
         self.player_modify()
         self.luck_modify()
         self.location_modify()
